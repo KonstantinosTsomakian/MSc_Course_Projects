@@ -137,7 +137,7 @@ def information_content(pwm):
     return sum(I_list)
 ```
 
-<u>Implement the iterative sampler.</u>
+<u>Implement the iterative sampler by replacing with the highest scoring motifs.</u>
 ```python
 path_to_sequnces = f'{os.getcwd()}/motifs_in_sequence.fa'
 seq_dic = load_sequences(path_to_sequnces)
@@ -148,7 +148,7 @@ num_of_seq = len(seq_dic)
 length_of_seq = len(seq_dic['seq0'])
 ```
 
-<u>Load libraries</u>
+
 ```python
 ic = []
 
@@ -184,10 +184,59 @@ for kmer in list_for_update:
 ```
 
 
-<u>Plot hte information content over iterations.</u>
+<u>Plot the information content over iterations.</u>
 <br><br>
 
 
 <div style="text-align: center;">
-    <img src="figures/ic_over_iterations.png" alt="Nonmers plot" width="500">
+    <img src="figures/ic_over_iterations.png" alt="Nonmers plot" width="700">
 </div>
+<br><br>
+
+
+<u>Implement the iterative sampler by replacing with the most likely motifs.</u>
+
+```python
+ic = []
+
+# Step 1: Initialization
+# ##Create a dictionary that randomly chooses indexes for kmers in each sequene
+import random
+import math
+random_indeces_dix = {key : random.randint(0, (length_of_seq - k) + 1) for key in seq_dic.keys()}
+#random_indexes_dix
+
+#Crate a list of random kmers
+initial_kmers_dic = {}
+initial_kmers_dic = {key: seq[random_indeces_dix[key]:random_indeces_dix[key] + k] for key,seq in seq_dic.items()}
+list_for_update = list(initial_kmers_dic.values()) #Here is the mistake because I have already set the initial_kmers
+
+
+for _ in range(number_of_iterations):
+    current_pwm = pwm(list_for_update)
+    current_pssm = pssm(nucfreqs=nuccomp(''.join(list_for_update)), pwm = current_pwm)
+    for j, seq in enumerate(seq_dic.values()):
+        
+        scan = pssmSearch(pssm=current_pssm, sequence=seq, threshold=0)
+        number_of_kmers = len(scan)
+        probs = [value[1] for value in scan.values()]
+        weights = [v if (v > 0 and math.isfinite(v)) else 0.01 for v in probs]
+        
+        kmers = list(scan.keys())
+        weighted_choice = random.choices(kmers, weights=weights, k=1)[0]
+        list_for_update[j] = weighted_choice
+        
+        
+        ic.append(information_content(current_pwm))
+
+
+kmer_dictionary = dict(zip(list_for_update, len(list_for_update) * [0]))
+for kmer in list_for_update:
+    kmer_dictionary[kmer] +=1
+
+```
+<br><br>
+<div style="text-align: center;">
+    <img src="figures/ic_over_iterations_with_probs.png" alt="Nonmers plot" width="700">
+</div>
+<br><br>
